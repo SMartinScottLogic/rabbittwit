@@ -7,22 +7,31 @@ use PhpAmqpLib\Message\AMQPMessage;
 $connection = new AMQPStreamConnection('twitter_rabbitmq_1', 5672, 'guest', 'guest');
 $channel = $connection->channel();
 $channel->basic_qos(null, 1, null);
-
 $channel->queue_declare('hello', false, true, false, false);
-$channel->queue_declare('hello2', false, true, false, false);
 
-for($i = 0; $i < 10; $i ++) {
-	$s = 'Hello World #'.$i;
+$channel2 = $connection->channel();
+$channel2->basic_qos(null, 1, null);
+$channel2->queue_declare('hello2', false, true, false, false);
+
+$callback = function($msg) {
+	global $channel;
+
+	echo " [x] Received ", $msg->body, "\n";
+	$s = 'Forward - '.$msg->body;
 	$msg = new AMQPMessage($s, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
 	$channel->basic_publish($msg, '', 'hello');
-	$msg = new AMQPMessage('filter - '.$s, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
-	$channel->basic_publish($msg, '', 'hello2');
+      	echo " [x] Sent '${s}'\n";
+};
 
-	echo " [x] Sent '${s}'\n";
-	sleep(3);
+$channel2->basic_consume('hello2', '', false, true, false, false, $callback);
+
+while(count($channel2->callbacks)) {
+    $channel2->wait();
 }
 
+$channel2->close();
 $channel->close();
+$connection2->close();
 $connection->close();
 
 ?>

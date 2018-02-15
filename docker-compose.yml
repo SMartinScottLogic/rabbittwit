@@ -20,6 +20,15 @@ services:
         command: php receive.php
         entrypoint: sh wait_for rabbitmq 5672
 
+    filter:
+        build: .
+        links:
+          - rabbitmq
+        environment:
+          - AMPQ_ADDRESS=amqp://rabbitmq:5672
+        command: php filter.php
+        entrypoint: sh wait_for rabbitmq 5672
+
     rabbitmq:
         image: rabbitmq:alpine
         ports:
