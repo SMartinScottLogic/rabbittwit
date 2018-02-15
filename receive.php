@@ -5,9 +5,9 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 
 $connection = new AMQPStreamConnection('twitter_rabbitmq_1', 5672, 'guest', 'guest');
 $channel = $connection->channel();
+$channel->basic_qos(null, 1, null);
 
-
-$channel->queue_declare('hello', false, false, false, false);
+$channel->queue_declare('hello', false, true, false, false);
 
 echo ' [*] Waiting for messages. To exit press CTRL+C', "\n";
 

@@ -6,13 +6,13 @@ use PhpAmqpLib\Message\AMQPMessage;
 
 $connection = new AMQPStreamConnection('twitter_rabbitmq_1', 5672, 'guest', 'guest');
 $channel = $connection->channel();
+$channel->basic_qos(null, 1, null);
 
-
-$channel->queue_declare('hello', false, false, false, false);
+$channel->queue_declare('hello', false, true, false, false);
 
 for($i = 0; $i < 10; $i ++) {
 	$s = 'Hello World #'.$i;
-	$msg = new AMQPMessage($s);
+	$msg = new AMQPMessage($s, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
 	$channel->basic_publish($msg, '', 'hello');
 
 	echo " [x] Sent '${s}'\n";
