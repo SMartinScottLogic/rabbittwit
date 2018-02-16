@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+find /home/simon/Downloads/Twitter/old/keep/ /home/simon/Downloads/Twitter/old/binary/ -type f | php /home/simon/Development/twitter/update_friends.php | sort -g -k2

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+DELAY=$(( 3 * 60 ))
+BASEDIR="$(dirname "`readlink -m "${0}"`")"
+
+rm -fv "${BASEDIR}/highest_id.txt"
+while (( 1 ))
+do
+  [ "$( cat "${BASEDIR}/highest_id.txt" | wc -w )" = "0" ] && rm -v "${BASEDIR}/highest_id.txt"
+  "${BASEDIR}/tmblr" 256
+  php "${BASEDIR}/twitter.php" | sort -u | wget -nv -nc -i-
+
+  target_dir="../old/$( date '+%Y%m%d' )"
+  mkdir -p "${target_dir}"
+  find . -type f -print0 | xargs -r0 mv -v --backup=t -t "${target_dir}" --
+  date
+  df -h .
+  grep '[0-9]' "${BASEDIR}/highest_id.txt" "${BASEDIR}/last_min.txt"
+  echo "sleeping for ${DELAY}s."
+  sleep ${DELAY}
+done

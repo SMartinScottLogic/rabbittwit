@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+function newdirs {
+  COUNT="${1}"
+  MINSIZE="${2}"
+
+  find /downloads/Twitter/new/ -type f -print0 | xargs -r0 mv -v --backup=t -t. --
+  #find next*/ -type f -print0 | xargs -r0 mv -v --backup=t -t. --
+  find /home/simon/Dropbox/stuff/images/ -type f -print0 | xargs -r0 mv -v --backup=t -t. --
+  find /downloads/Twitter/new/* . -maxdepth 1 -depth -empty -print -delete
+
+  ~/Development/organise/organise -p next -m 75 
+  ~/Dropbox/scripts/images/cleanimg_fixname "${MINSIZE}" $( ls -1d next* | sort -Vr | head -${COUNT} )
+  ~/Dropbox/scripts/images/cleanimg_fixname "${MINSIZE}" $( ls -1d next* | sort -V | head -${COUNT} )
+  #~/Dropbox/scripts/images/cleanimg_fixname "${MINSIZE}" $( ls -1d next* | sort -V )
+}
+
+function processdir {
+  PATTERN1="${1}"
+  PATTERN2="${2}"
+  MINSIZE="${3}"
+
+  D="$( ls -1d "${PATTERN1}"* | sort -Vr | head -1 )"
+  cd "${D}"
+    ~/Dropbox/scripts/images/cleanimg_fixname "${MINSIZE}" $( ls -1d "${PATTERN2}"* | sort -V | head -1 )
+    mv -v --backup=t -- keep/* ../keep/
+    rmdir keep binary
+  cd ..
+  rmdir "${D}"
+}
+
+function datedirs {
+  COUNT="${1}"
+  MINSIZE="${2}"
+
+  for i in $( seq ${COUNT} )
+  do
+    processdir 201 GROUP "${MINSIZE}"
+  done
+}
+
+function dupedirs {
+  COUNT="${1}"
+  MINSIZE="${2}"
+
+  for i in $( seq ${COUNT} )
+  do
+    processdir Group Group "${MINSIZE}"
+  done
+}
+
+sudo rm -rfv /downloads/.Trash-*/*
+
+newdirs 3 300
+#dupedirs 3 300
+#datedirs 10 300
+~/Dropbox/scripts/images/cleanimg_fixname 300 $( ls -1d old* | sort -Vr | head -3 )
+
+sudo rm -rfv /downloads/.Trash-*/*
+df -h

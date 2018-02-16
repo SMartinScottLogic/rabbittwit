@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+BASEDIR="$(dirname "`readlink -m "${0}"`")"
+LASTMIN="${BASEDIR}/last_min.txt"
+
+BANDWIDTH="1m"
+LINES="${1:-1000}"
+MONGO_HOST="192.168.1.10"
+
+last_min="$( cat "${LASTMIN}" )"
+
+function process_urls() {
+  for file in *
+  do 
+    if [[ -f "${file}" ]]
+    then
+      #echo "${file}" 1>&2
+      TYPE="$( file -bi -- "${file}" | cut -f 1 -d ';' )"
+      if [[ "${TYPE}" = "text/html" ]]
+      then
+        URL="$( sed 's|<|\n<|g' "${file}" | grep '<meta' | grep ':image' | sed 's|\(.*\)\(content="\)\([^"]*\)\(.*\)|\3|g' )"
+        if [[ -n "${URL}" ]]
+        then
+          echo "${URL}"
+        fi
+        URL="$( sed 's|<|\n<|g' "${file}" | grep '<meta' | grep ':video' | sed 's|\(.*\)\(content="\)\([^"]*\)\(.*\)|\3|g' )"
+        if [[ -n "${URL}" ]]
+        then
+          echo "${URL}"
+        fi
+        URL="$( sed 's|<|\n<|g' "${file}" | grep twitter:player:stream\" | sed 's|\(.*\)\(content="\)\([^"]*\)\(.*\)|\3|g' )"
+        if [[ -n "${URL}" ]]
+        then
+          echo "${URL}"
+        fi
+        rm "${file}"
+      fi
+    fi
+  done | wget -nv -nc -i- --limit-rate="${BANDWIDTH}"
+}
+
+if [[ -n "${last_min}" ]]
+then
+counter=0
+mongo --quiet --eval 'db.tweets.find({"id_str":{"$gt":"'${last_min}'"}}).sort({"id_str":1}).forEach( function(doc) { for(var i=0; i<doc.entities.urls.length; i++) { var url = doc.entities.urls[i]; if( url["expanded_url"].indexOf("vine.")!=-1 || url["expanded_url"].indexOf("tmblr")!==-1 || url["expanded_url"].indexOf("instagram")!==-1 ) { print("url="+url["expanded_url"]);print("ID_STR="+doc["id_str"]); } } } );' "${MONGO_HOST}/twitter" | head --lines="${LINES}" | while read line
+  do
+    echo "${line}"
+    mode="$( echo "${line}" | cut -d '=' -f 1 )"
+    param="$( echo "${line}" | cut -d '=' -f 2 )"
+    case "${mode}" in
+      ID_STR)
+        echo "FILES = ${counter}"
+        counter=$((counter + 1))
+        #echo "${param}" 1>&2
+        if [[ "${last_min}" -lt "${param}" ]]
+        then
+          #echo "${last_min} ${param}"
+          last_min="${param}"
+          echo "${last_min}" > "${LASTMIN}"
+        fi
+        ;;
+      url)
+        echo "${line}" | sed 's|\/$||g' | curl --silent -L -K- -O
+        ;;
+    esac
+  done
+fi
+
+echo "===================================================="
+echo "Starting URL extraction ..."
+echo "===================================================="
+process_urls
+
