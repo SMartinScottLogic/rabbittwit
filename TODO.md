@@ -9,4 +9,4 @@ Out of git repo, and into shared secrets.
 
 RabbitMQ
 ========
-Remove ```rabbitmq``` from docker_compose.yml, link to it using ```external_links```.
+Remove ```rabbitmq``` from docker_compose.yml, link to it using [external_links](https://docs.docker.com/compose/compose-file/#external_links).
