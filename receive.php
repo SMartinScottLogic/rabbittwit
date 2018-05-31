@@ -1,5 +1,5 @@
 <?php
-$out_dir = "/";
+$out_dir = "/images";
 
 require_once __DIR__ . '/vendor/autoload.php';
 use PhpAmqpLib\Connection\AMQPStreamConnection;

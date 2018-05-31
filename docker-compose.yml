@@ -1,4 +1,7 @@
 version: "2"
+volumes:
+    twitter:
+
 services:
     send:
         build: .
@@ -27,6 +30,8 @@ services:
           - rabbitmq
         environment:
           - AMPQ_ADDRESS=amqp://rabbitmq:5672
+        volumes:
+          - twitter:/images
         command: php receive.php
         entrypoint: sh wait_for rabbitmq 5672
 
