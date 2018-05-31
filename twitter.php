@@ -2,12 +2,6 @@
 
 $max_pages = 15;
 $page_len = 200;
-$mongo_host = '192.168.1.10';
-
-$m=new MongoClient("mongodb://{$mongo_host}:27017");
-$collection = $m->selectCollection('twitter','tweets');
-$images = $m->selectCollection('twitter','images');
-$users = $m->selectCollection('twitter','users');
 
 require_once( dirname(__FILE__) . '/codebird-php/src/codebird.php');
 
@@ -53,6 +47,7 @@ function get_image_id($url) {
 }
 
 function upsert_image($url, $user) {
+/*
   global $images, $users;
 
   $image_id = get_image_id($url);
@@ -70,34 +65,9 @@ function upsert_image($url, $user) {
     array('$set'=>array('active'=>true)),
     array('upsert'=>true, 'multiple'=>false)
   );
-}
-
-/* gets the data from a URL */
-function produce_fetchlist() {
-  global $images;
-
-  $query = array('fetched'=>array('$exists'=>false));
-  $cursor = $images->find($query);
-  $cursor->timeout(120000);
-  foreach($cursor as $entry) {
-    print $entry['url'] . "\n";
-  }
-  $images->update($query, array('$set'=>array('fetched'=>true)), array('upsert'=>false, 'multiple'=>true, 'wTimeoutMS'=>120000, 'timeout'=>120000));
-  return;
-  $ch = curl_init();
-  $timeout = 5;
-  $userAgent = 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)';
-
-  curl_setopt($ch, CURLOPT_URL, $url);
-  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
-  curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
-  curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-  curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-
-  $data = curl_exec($ch);
-  curl_close($ch);
-  return $data;
+*/
+  $image_id = get_image_id($url);
+  print "TODO: enqueue: ${image_id}\t${url}\n";
 }
 
 function analyseTweets(&$reply) {
@@ -118,10 +88,6 @@ function analyseTweets(&$reply) {
         $lowest_id = $id;
       } else {
         $lowest_id = min($lowest_id, $id);
-      }
-      try {
-        $collection->insert($tweet, array("w" => 1));
-      } catch(Exception $e) {
       }
     }
 
@@ -274,6 +240,4 @@ if($fp) {
   fprintf($fp, "%s\n", $highest_id);
   fclose($fp);
 }
-produce_fetchlist();
-//print_r($reply);
 ?>

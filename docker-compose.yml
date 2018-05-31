@@ -10,6 +10,16 @@ services:
           - AMPQ_ADDRESS=amqp://rabbitmq:5672
         command: php send.php
         entrypoint: sh wait_for rabbitmq 5672
+    twitter:
+        build: .
+        links:
+          - rabbitmq
+        depends_on:
+          - rabbitmq
+        environment:
+          - AMPQ_ADDRESS=amqp://rabbitmq:5672
+        command: sleep 36000
+        entrypoint: sh wait_for rabbitmq 5672
 
     receive:
         build: .
