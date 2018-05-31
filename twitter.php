@@ -4,6 +4,15 @@ $max_pages = 15;
 $page_len = 200;
 
 require_once( dirname(__FILE__) . '/codebird-php/src/codebird.php');
+require_once __DIR__ . '/vendor/autoload.php';
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Message\AMQPMessage;
+
+$connection = new AMQPStreamConnection('twitter_rabbitmq_1', 5672, 'guest', 'guest');
+$channel = $connection->channel();
+$channel->basic_qos(null, 1, null);
+
+$channel->queue_declare('hello', false, true, false, false);
 
 $Consumer_Key = "siXDhVB0M7zrtRmT0Qc3bQ";
 $Consumer_Secret = "2l6QoKPHDedi5ytK7aioLV3sZhPk7xcmQc2QaJUN8";
@@ -66,7 +75,12 @@ function upsert_image($url, $user) {
     array('upsert'=>true, 'multiple'=>false)
   );
 */
+  global $channel;
+
   $image_id = get_image_id($url);
+  $s = json_encode([ 'url' => $url, 'image_id' => $image_id ]);
+  $msg = new AMQPMessage($s, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
+  $channel->basic_publish($msg, '', 'hello');
   print "TODO: enqueue: ${image_id}\t${url}\n";
 }
 
