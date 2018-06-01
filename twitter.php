@@ -45,6 +45,7 @@ if(isset($since_id)) {
   fprintf(STDERR, "since_id = '%s'\n", $since_id);
 }
 
+/*
 function get_image_id($url) {
   $parts = explode("/", $url);
   $filename = $parts[count($parts)-1];
@@ -56,7 +57,6 @@ function get_image_id($url) {
 }
 
 function upsert_image($url, $user) {
-/*
   global $images, $users;
 
   $image_id = get_image_id($url);
@@ -74,20 +74,22 @@ function upsert_image($url, $user) {
     array('$set'=>array('active'=>true)),
     array('upsert'=>true, 'multiple'=>false)
   );
-*/
+}
+ */
+function upsert_image($image) {
   global $channel;
 
-  $image_id = get_image_id($url);
-  $s = json_encode([ 'url' => $url, 'image_id' => $image_id ]);
+  $s = json_encode($image);
   $msg = new AMQPMessage($s, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
   $channel->basic_publish($msg, '', 'hello');
-  print "TODO: enqueue: ${image_id}\t${url}\n";
+  print "TODO: enqueue: " . print_r($image, TRUE) . "\n";
 }
 
 function analyseTweets(&$reply) {
   global $highest_id, $lowest_id;
   global $collection;
 
+  $images = array();
   foreach($reply as $tweet) {
     if(isset($tweet->id)) {
       $id = $tweet->id;
@@ -122,8 +124,10 @@ function analyseTweets(&$reply) {
           } else if(isset($media->media_url_https)) {
             $url = $media->media_url_https;
           }
-          if(isset($url)) {
-            upsert_image($url.":large", $tweet->user->id_str);
+	  if(isset($url)) {
+            $large_url = $url.':large';
+	    $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
+            //upsert_image($url.":large", $tweet->user->id_str);
           }
         }
       }
@@ -140,7 +144,9 @@ function analyseTweets(&$reply) {
             $url = $media->media_url_https;
           }
           if(isset($url)) {
-            upsert_image($url.":large", $tweet->user->id_str);
+            $large_url = $url.':large';
+	    $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
+            //upsert_image($url.":large", $tweet->user->id_str);
           }
         }
       }
@@ -159,7 +165,9 @@ function analyseTweets(&$reply) {
               }
               if(isset($url)) {
                 $num_extended_media_videos ++;
-                upsert_image($url, $tweet->user->id_str);
+                $large_url = $url;
+	        $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
+                //upsert_image($url, $tweet->user->id_str);
               }
             }
           }
@@ -177,7 +185,9 @@ function analyseTweets(&$reply) {
           $url = $media->media_url_https;
         }
         if(isset($url)) {
-          upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
+          $large_url = $url . ':large';
+	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
+          //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
         }
       }
     }
@@ -192,13 +202,19 @@ function analyseTweets(&$reply) {
           $url = $media->media_url_https;
         }
         if(isset($url)) {
-          upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
+          $large_url = $url . ':large';
+	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
+          //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
         }
       }
     }
     if( $num_media+$num_extended_media+$num_retweeted_media+$num_retweeted_extended_media+$num_extended_media_videos>0) {
       fprintf(STDERR, "%s\t%s\t%s\t%s\t%s\t%s\n", $id, $num_media, $num_extended_media, $num_retweeted_media, $num_retweeted_extended_media, $num_extended_media_videos);
     }
+  }
+
+  foreach($images as $image) {
+    upsert_image($image);
   }
 }
 
