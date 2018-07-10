@@ -45,166 +45,16 @@ if(isset($since_id)) {
   fprintf(STDERR, "since_id = '%s'\n", $since_id);
 }
 
-/*
-function get_image_id($url) {
-  $parts = explode("/", $url);
-  $filename = $parts[count($parts)-1];
-  $parts = explode(".", $filename);
-  $filename = $parts[0];
-  $parts = explode(":", $filename);
-  $id = $parts[0];
-  return $id;
-}
-
-function upsert_image($url, $user) {
-  global $images, $users;
-
-  $image_id = get_image_id($url);
-
-  $images->update(
-    array('_id'=>$image_id ), 
-    array(
-      '$set'=>array('url'=>$url), 
-      '$addToSet'=>array('users'=>$user) 
-    ), 
-    array('upsert'=>true, 'multiple'=>false)
-  );
-  $users->update(
-    array('_id'=>$user),
-    array('$set'=>array('active'=>true)),
-    array('upsert'=>true, 'multiple'=>false)
-  );
-}
- */
 function some_callback($tweet)
 {
   // gets called for every new streamed message
   // gets called with $message = NULL once per second
 
   if ($tweet !== null) {
+    //print_r($tweet);
+
     $images = array();
-    print_r($tweet);
-    if(isset($tweet->id)) {
-      $id = $tweet->id;
-      // print "ID: " . $id . "\n";
-
-      if(!isset($highest_id)) {
-        $highest_id = $id;
-      } else {
-        $highest_id = max($highest_id, $id);
-      }
-      if(!isset($lowest_id)) {
-        $lowest_id = $id;
-      } else {
-        $lowest_id = min($lowest_id, $id);
-      }
-    }
-
-    //print $tweet->text . "\n";
-    $num_media = 0;
-    $num_extended_media=0;
-    $num_extended_media_videos = 0;
-    $num_retweeted_media=0;
-    $num_retweeted_extended_media=0;
-    if(isset($tweet->entities) ) {
-      if( isset($tweet->entities->media)) {
-        $num_media = count($tweet->entities->media);
-        foreach($tweet->entities->media as $media) {
-          //print_r($media);
-          unset($url);
-          if(isset($media->media_url)) {
-            $url = $media->media_url;
-          } else if(isset($media->media_url_https)) {
-            $url = $media->media_url_https;
-          }
-	  if(isset($url)) {
-            $large_url = $url.':large';
-	    $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
-            //upsert_image($url.":large", $tweet->user->id_str);
-          }
-        }
-      }
-    }
-    if(isset($tweet->extended_entities) ) {
-      if( isset($tweet->extended_entities->media)) {
-        $num_extended_media = count($tweet->extended_entities->media);
-        foreach($tweet->extended_entities->media as $media) {
-          //print_r($media);
-          unset($url);
-          if(isset($media->media_url)) {
-            $url = $media->media_url;
-          } else if(isset($media->media_url_https)) {
-            $url = $media->media_url_https;
-          }
-          if(isset($url)) {
-            $large_url = $url.':large';
-	    $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
-            //upsert_image($url.":large", $tweet->user->id_str);
-          }
-        }
-      }
-    }
-    
-    if(isset($tweet->extended_entities) ) {
-      if( isset($tweet->extended_entities->media)) {
-        $num_extended_media_videos = 0;
-        foreach($tweet->extended_entities->media as $media) {
-          //print_r($media);
-          if(isset($media->video_info) && isset($media->video_info->variants)) {
-            foreach($media->video_info->variants as $variant) {
-              unset($url);
-              if(isset($variant->url)) {
-                $url = $variant->url;
-              }
-              if(isset($url)) {
-                $num_extended_media_videos ++;
-                $large_url = $url;
-	        $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
-                //upsert_image($url, $tweet->user->id_str);
-              }
-            }
-          }
-        }
-      }
-    }
-    if(isset($tweet->retweeted_status) && isset($tweet->retweeted_status->entities) && isset($tweet->retweeted_status->entities->media)) {
-      $num_retweeted_media = count($tweet->retweeted_status->entities->media);
-      foreach($tweet->retweeted_status->entities->media as $media) {
-        //print_r($media);
-        unset($url);
-        if(isset($media->media_url)) {
-          $url = $media->media_url;
-        } else if(isset($media->media_url_https)) {
-          $url = $media->media_url_https;
-        }
-        if(isset($url)) {
-          $large_url = $url . ':large';
-	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
-          //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
-        }
-      }
-    }
-    if(isset($tweet->retweeted_status) && isset($tweet->retweeted_status->extended_entities) && isset($tweet->retweeted_status->extended_entities->media)) {
-      $num_retweeted_media = count($tweet->retweeted_status->extended_entities->media);
-      foreach($tweet->retweeted_status->extended_entities->media as $media) {
-        //print_r($media);
-        unset($url);
-        if(isset($media->media_url)) {
-          $url = $media->media_url;
-        } else if(isset($media->media_url_https)) {
-          $url = $media->media_url_https;
-        }
-        if(isset($url)) {
-          $large_url = $url . ':large';
-	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
-          //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
-        }
-      }
-    }
-    if( $num_media+$num_extended_media+$num_retweeted_media+$num_retweeted_extended_media+$num_extended_media_videos>0) {
-      fprintf(STDERR, "%s\t%s\t%s\t%s\t%s\t%s\n", $id, $num_media, $num_extended_media, $num_retweeted_media, $num_retweeted_extended_media, $num_extended_media_videos);
-    }
-
+    analyseTweet($images, $tweet);
     foreach($images as $image) {
       upsert_image($image);
     }
@@ -226,7 +76,6 @@ function some_callback($tweet)
 // set the streaming callback in Codebird
 $cb->setStreamingCallback('some_callback');
 
-
 function upsert_image($image) {
   global $channel;
 
@@ -236,132 +85,134 @@ function upsert_image($image) {
   print "TODO: enqueue: " . print_r($image, TRUE) . "\n";
 }
 
-function analyseTweets(&$reply) {
+function analyseTweet(&$images, &$tweet) {
   global $highest_id, $lowest_id;
-  global $collection;
+  if(isset($tweet->id)) {
+    $id = $tweet->id;
+    // print "ID: " . $id . "\n";
 
-  $images = array();
-  foreach($reply as $tweet) {
-    if(isset($tweet->id)) {
-      $id = $tweet->id;
-      // print "ID: " . $id . "\n";
-
-      if(!isset($highest_id)) {
-        $highest_id = $id;
-      } else {
-        $highest_id = max($highest_id, $id);
-      }
-      if(!isset($lowest_id)) {
-        $lowest_id = $id;
-      } else {
-        $lowest_id = min($lowest_id, $id);
-      }
+    if(!isset($highest_id)) {
+      $highest_id = $id;
+    } else {
+      $highest_id = max($highest_id, $id);
     }
+    if(!isset($lowest_id)) {
+      $lowest_id = $id;
+    } else {
+      $lowest_id = min($lowest_id, $id);
+    }
+  }
 
-    //print $tweet->text . "\n";
-    $num_media = 0;
-    $num_extended_media=0;
-    $num_extended_media_videos = 0;
-    $num_retweeted_media=0;
-    $num_retweeted_extended_media=0;
-    if(isset($tweet->entities) ) {
-      if( isset($tweet->entities->media)) {
-        $num_media = count($tweet->entities->media);
-        foreach($tweet->entities->media as $media) {
-          //print_r($media);
-          unset($url);
-          if(isset($media->media_url)) {
-            $url = $media->media_url;
-          } else if(isset($media->media_url_https)) {
-            $url = $media->media_url_https;
-          }
-	  if(isset($url)) {
-            $large_url = $url.':large';
-	    $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
-            //upsert_image($url.":large", $tweet->user->id_str);
-          }
+  //print $tweet->text . "\n";
+  $num_media = 0;
+  $num_extended_media=0;
+  $num_extended_media_videos = 0;
+  $num_retweeted_media=0;
+  $num_retweeted_extended_media=0;
+  if(isset($tweet->entities) ) {
+    if( isset($tweet->entities->media)) {
+      $num_media = count($tweet->entities->media);
+      foreach($tweet->entities->media as $media) {
+        //print_r($media);
+        unset($url);
+        if(isset($media->media_url)) {
+          $url = $media->media_url;
+        } else if(isset($media->media_url_https)) {
+          $url = $media->media_url_https;
+        }
+        if(isset($url)) {
+          $large_url = $url.':large';
+	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
+          //upsert_image($url.":large", $tweet->user->id_str);
         }
       }
     }
-    if(isset($tweet->extended_entities) ) {
-      if( isset($tweet->extended_entities->media)) {
-        $num_extended_media = count($tweet->extended_entities->media);
-        foreach($tweet->extended_entities->media as $media) {
-          //print_r($media);
-          unset($url);
-          if(isset($media->media_url)) {
-            $url = $media->media_url;
-          } else if(isset($media->media_url_https)) {
-            $url = $media->media_url_https;
-          }
-          if(isset($url)) {
-            $large_url = $url.':large';
-	    $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
-            //upsert_image($url.":large", $tweet->user->id_str);
-          }
+  }
+  if(isset($tweet->extended_entities) ) {
+    if( isset($tweet->extended_entities->media)) {
+      $num_extended_media = count($tweet->extended_entities->media);
+      foreach($tweet->extended_entities->media as $media) {
+        //print_r($media);
+        unset($url);
+        if(isset($media->media_url)) {
+          $url = $media->media_url;
+        } else if(isset($media->media_url_https)) {
+          $url = $media->media_url_https;
+        }
+        if(isset($url)) {
+          $large_url = $url.':large';
+          $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
+          //upsert_image($url.":large", $tweet->user->id_str);
         }
       }
     }
-    
-    if(isset($tweet->extended_entities) ) {
-      if( isset($tweet->extended_entities->media)) {
-        $num_extended_media_videos = 0;
-        foreach($tweet->extended_entities->media as $media) {
-          //print_r($media);
-          if(isset($media->video_info) && isset($media->video_info->variants)) {
-            foreach($media->video_info->variants as $variant) {
-              unset($url);
-              if(isset($variant->url)) {
-                $url = $variant->url;
-              }
-              if(isset($url)) {
-                $num_extended_media_videos ++;
-                $large_url = $url;
-	        $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
-                //upsert_image($url, $tweet->user->id_str);
-              }
+  }
+
+  if(isset($tweet->extended_entities) ) {
+    if( isset($tweet->extended_entities->media)) {
+      $num_extended_media_videos = 0;
+      foreach($tweet->extended_entities->media as $media) {
+        //print_r($media);
+        if(isset($media->video_info) && isset($media->video_info->variants)) {
+          foreach($media->video_info->variants as $variant) {
+            unset($url);
+            if(isset($variant->url)) {
+              $url = $variant->url;
+            }
+            if(isset($url)) {
+              $num_extended_media_videos ++;
+              $large_url = $url;
+              $images[$large_url] = array('url' => $large_url, 'user' => $tweet->user->id_str);
+              //upsert_image($url, $tweet->user->id_str);
             }
           }
         }
       }
     }
-    if(isset($tweet->retweeted_status) && isset($tweet->retweeted_status->entities) && isset($tweet->retweeted_status->entities->media)) {
-      $num_retweeted_media = count($tweet->retweeted_status->entities->media);
-      foreach($tweet->retweeted_status->entities->media as $media) {
-        //print_r($media);
-        unset($url);
-        if(isset($media->media_url)) {
-          $url = $media->media_url;
-        } else if(isset($media->media_url_https)) {
-          $url = $media->media_url_https;
-        }
-        if(isset($url)) {
-          $large_url = $url . ':large';
-	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
-          //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
-        }
+  }
+  if(isset($tweet->retweeted_status) && isset($tweet->retweeted_status->entities) && isset($tweet->retweeted_status->entities->media)) {
+    $num_retweeted_media = count($tweet->retweeted_status->entities->media);
+    foreach($tweet->retweeted_status->entities->media as $media) {
+      //print_r($media);
+      unset($url);
+      if(isset($media->media_url)) {
+        $url = $media->media_url;
+      } else if(isset($media->media_url_https)) {
+        $url = $media->media_url_https;
+      }
+      if(isset($url)) {
+        $large_url = $url . ':large';
+        $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
+        //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
       }
     }
-    if(isset($tweet->retweeted_status) && isset($tweet->retweeted_status->extended_entities) && isset($tweet->retweeted_status->extended_entities->media)) {
-      $num_retweeted_media = count($tweet->retweeted_status->extended_entities->media);
-      foreach($tweet->retweeted_status->extended_entities->media as $media) {
-        //print_r($media);
-        unset($url);
-        if(isset($media->media_url)) {
-          $url = $media->media_url;
-        } else if(isset($media->media_url_https)) {
-          $url = $media->media_url_https;
-        }
-        if(isset($url)) {
-          $large_url = $url . ':large';
-	  $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
-          //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
-        }
+  }
+  if(isset($tweet->retweeted_status) && isset($tweet->retweeted_status->extended_entities) && isset($tweet->retweeted_status->extended_entities->media)) {
+    $num_retweeted_media = count($tweet->retweeted_status->extended_entities->media);
+    foreach($tweet->retweeted_status->extended_entities->media as $media) {
+      //print_r($media);
+      unset($url);
+      if(isset($media->media_url)) {
+        $url = $media->media_url;
+      } else if(isset($media->media_url_https)) {
+        $url = $media->media_url_https;
+      }
+      if(isset($url)) {
+        $large_url = $url . ':large';
+        $images[$large_url] = array('url' => $large_url, 'user' => $tweet->retweeted_status->user->id_str);
+        //upsert_image($url.":large", $tweet->retweeted_status->user->id_str);
       }
     }
-    if( $num_media+$num_extended_media+$num_retweeted_media+$num_retweeted_extended_media+$num_extended_media_videos>0) {
-      fprintf(STDERR, "%s\t%s\t%s\t%s\t%s\t%s\n", $id, $num_media, $num_extended_media, $num_retweeted_media, $num_retweeted_extended_media, $num_extended_media_videos);
-    }
+  }
+  if( $num_media+$num_extended_media+$num_retweeted_media+$num_retweeted_extended_media+$num_extended_media_videos>0) {
+    fprintf(STDERR, "%s\t%s\t%s\t%s\t%s\t%s\n", $id, $num_media, $num_extended_media, $num_retweeted_media, $num_retweeted_extended_media, $num_extended_media_videos);
+  }
+}
+
+function analyseTweets(&$reply) {
+  $images = array();
+  foreach($reply as $tweet) {
+    analyseTweet($images, $tweet);
   }
 
   foreach($images as $image) {
@@ -416,6 +267,7 @@ for($page=0; $page<$max_pages; $page++) {
     break;
   }
 }
+
 // for canceling, see callback function body
 // not considered good practice in real world!
 $GLOBALS['time_start'] = time();
